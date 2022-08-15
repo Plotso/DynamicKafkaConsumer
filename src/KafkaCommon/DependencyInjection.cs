@@ -7,10 +7,239 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using Services;
+using Services.DynamicConsumer;
+using Services.Interfaces;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddKafkaConfiguration(this IServiceCollection serviceCollection, IConfiguration configuration, string configKey) 
+    public static IServiceCollection AddMessageProcessor<TKey, TMessage, TMessageProcessor>(
+        this IServiceCollection serviceCollection)
+        where TMessageProcessor : class, IMessageProcessor<TKey, TMessage> 
+        => serviceCollection.AddSingleton<IMessageProcessor<TKey, TMessage>, TMessageProcessor>();
+
+    /// <summary>
+    /// Registers dynamic consumer service with a single message processor.
+    /// Consumer is dynamic in terms that it can dynamically/remotely be configured when and what messages to process.
+    /// DynamicConsumer supports more than one message processors, if you want to add more, use <see cref="AddMessageProcessor{TKey,TMessage,TMessageProcessor}"/> method
+    /// </summary>
+    /// <param name="shouldSkipMessageProcessorIfAlreadyRegistered">
+    /// Indicates whether message processor registration is skipped in case of already existing processor for given key/value type pair
+    /// </param>
+    /// <param name="addKafkaConfigurationWithDefaultSectionName">
+    /// If set to true, method would also inject IOptionsMonitor kafka configuration from configuration section with key<see cref="Constants.KafkaConfigurationSectionName"/>
+    /// If another section is desired, set param to false and use <see cref="AddKafkaConfiguration"/>
+    /// </param>
+    /// <typeparam name="TWorker">The class to which a hosted consumer service should be started. It's recommended to inherit <see cref="AsyncDynamicConsumer{TKey,TValue}"/></typeparam>
+    /// <typeparam name="TKey">Kafka message key type</typeparam>
+    /// <typeparam name="TMessage">Kafka message value type</typeparam>
+    /// <typeparam name="TEventsHandler">
+    /// Events handler to be applied to the consumer. Might be null. If not sure what to use, simply add <see cref="KafkaEventsHandler"/>
+    /// </typeparam>
+    /// <typeparam name="TMessageProcessor">
+    /// Message processor that would be used for processing messages. It's recommended to inherit <see cref="MessageProcessor{TKey,TValue}"/>
+    /// </typeparam>
+    public static IServiceCollection AddDynamicConsumerService<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler, TKeyDeserializer, TValueDeserializer>(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration, 
+        bool shouldSkipMessageProcessorIfAlreadyRegistered,
+        bool addKafkaConfigurationWithDefaultSectionName)
+        where TWorker : class, IDynamicConsumerService
+        where TEventsHandler : class, IConsumerEventsHandler 
+        where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
+        where TKeyDeserializer : class, IDeserializer<TKey>
+        where TValueDeserializer : class, IDeserializer<TMessage>
+    {
+        if (addKafkaConfigurationWithDefaultSectionName)
+            serviceCollection.AddKafkaConfiguration(configuration, Constants.KafkaConfigurationSectionName);
+
+        if (shouldSkipMessageProcessorIfAlreadyRegistered)
+        {
+            serviceCollection.TryAddSingleton<IMessageProcessor<TKey, TMessage>, TMessageProcessor>();
+        }
+        else
+        {
+            serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
+        }
+        
+        serviceCollection.TryAddSingleton<TEventsHandler>();
+        serviceCollection.TryAddSingleton<TKeyDeserializer>();
+        serviceCollection.TryAddSingleton<TValueDeserializer>();
+        serviceCollection.TryAddSingleton<IDynamicConsumerModifier<TKey>, DynamicConsumerModifier<TKey>>();
+        serviceCollection
+            .AddHostedService<TWorker>();
+        
+        return serviceCollection;
+    } 
+    
+        /// <summary>
+    /// Registers dynamic consumer service with a single message processor.
+    /// Consumer is dynamic in terms that it can dynamically/remotely be configured when and what messages to process.
+    /// DynamicConsumer supports more than one message processors, if you want to add more, use <see cref="AddMessageProcessor{TKey,TMessage,TMessageProcessor}"/> method
+    /// </summary>
+    /// <param name="shouldSkipMessageProcessorIfAlreadyRegistered">
+    /// Indicates whether message processor registration is skipped in case of already existing processor for given key/value type pair
+    /// </param>
+    /// <param name="addKafkaConfigurationWithDefaultSectionName">
+    /// If set to true, method would also inject IOptionsMonitor kafka configuration from configuration section with key<see cref="Constants.KafkaConfigurationSectionName"/>
+    /// If another section is desired, set param to false and use <see cref="AddKafkaConfiguration"/>
+    /// </param>
+    /// <typeparam name="TWorker">The class to which a hosted consumer service should be started. It's recommended to inherit <see cref="AsyncDynamicConsumer{TKey,TValue}"/></typeparam>
+    /// <typeparam name="TKey">Kafka message key type</typeparam>
+    /// <typeparam name="TMessage">Kafka message value type</typeparam>
+    /// <typeparam name="TEventsHandler">
+    /// Events handler to be applied to the consumer. Might be null. If not sure what to use, simply add <see cref="KafkaEventsHandler"/>
+    /// </typeparam>
+    /// <typeparam name="TMessageProcessor">
+    /// Message processor that would be used for processing messages. It's recommended to inherit <see cref="MessageProcessor{TKey,TValue}"/>
+    /// </typeparam>
+    public static IServiceCollection AddDynamicConsumerServiceWithDefaultDeserializers<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler>(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration, 
+        bool shouldSkipMessageProcessorIfAlreadyRegistered,
+        bool addKafkaConfigurationWithDefaultSectionName)
+        where TWorker : class, IDynamicConsumerService
+        where TEventsHandler : class, IConsumerEventsHandler 
+        where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
+    {
+        if (addKafkaConfigurationWithDefaultSectionName)
+            serviceCollection.AddKafkaConfiguration(configuration, Constants.KafkaConfigurationSectionName);
+
+        if (shouldSkipMessageProcessorIfAlreadyRegistered)
+        {
+            serviceCollection.TryAddSingleton<IMessageProcessor<TKey, TMessage>, TMessageProcessor>();
+        }
+        else
+        {
+            serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
+        }
+        
+        serviceCollection.TryAddSingleton<TEventsHandler>();
+        serviceCollection.TryAddSingleton<IDynamicConsumerModifier<TKey>, DynamicConsumerModifier<TKey>>();
+        serviceCollection
+            .AddHostedService<TWorker>();
+        
+        return serviceCollection;
+    } 
+    
+    /// <summary>
+    /// Adds a kafka consumer with default deserialisers.
+    /// <see cref="KafkaConfiguration"/> is required for this method to operate. If missing, add it with <see cref="AddKafkaConfiguration"/>
+    /// Note: Consumer supports more than one message processors, if you want to add more, use <see cref="AddMessageProcessor{TKey,TMessage,TMessageProcessor}"/> method
+    /// </summary>
+    /// <param name="consumerConfigurationName">Name of specific consumer configuration section</param>
+    /// <param name="shouldSkipMessageProcessorIfAlreadyRegistered">
+    /// Indicates whether message processor registration is skipped in case of already existing processor for given key/value type pair
+    /// </param>
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TMessage"></typeparam>
+    /// <typeparam name="TWorker">The class to which a hosted consumer service should be started. It's recommended to inherit <see cref="AsyncConsumer{TKey,TValue}"/></typeparam>
+    /// <typeparam name="TEventsHandler">
+    /// Events handler to be applied to the consumer. Might be null. If not sure what to use, simply add <see cref="KafkaEventsHandler"/>
+    /// </typeparam>
+    /// <typeparam name="TMessageProcessor">
+    /// Message processor that would be used for processing messages. It's recommended to inherit <see cref="MessageProcessor{TKey,TValue}"/>
+    /// </typeparam>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown in case <see cref="consumerConfigurationName"/> is missing from <see cref="KafkaConfiguration"/>
+    /// </exception>
+    public static IServiceCollection AddConsumerServiceWithDefaultDeserializers<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler>(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration, 
+        string consumerConfigurationName,
+        bool shouldSkipMessageProcessorIfAlreadyRegistered)
+        where TWorker : class, IHostedService
+        where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
+        where TEventsHandler : class, IConsumerEventsHandler
+    {
+        serviceCollection.TryAddSingleton<TEventsHandler>();
+
+        if (shouldSkipMessageProcessorIfAlreadyRegistered)
+        {
+            serviceCollection.TryAddSingleton<IMessageProcessor<TKey, TMessage>, TMessageProcessor>();
+        }
+        else
+        {
+            serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
+        }
+        
+        var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
+        if (!kafkaConfig.Consumers.TryGetValue(consumerConfigurationName, out var consumerConfiguration))
+            throw new InvalidOperationException(string.Format(
+                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
+                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+
+        return serviceCollection
+            .AddSingleton(provider =>
+                StaticConsumerBuilder.AddConsumerBuilder<TKey, TMessage>(consumerConfiguration,
+                    keyDeserializer: null,
+                    valueDeserializer: null,
+                    provider.GetService<TEventsHandler>()))
+            .AddHostedService<TWorker>();
+    }
+    
+    /// <summary>
+    /// Adds a kafka consumer with specific deserializers.
+    /// <see cref="KafkaConfiguration"/> is required for this method to operate. If missing, add it with <see cref="AddKafkaConfiguration"/>
+    /// Note: Consumer supports more than one message processors, if you want to add more, use <see cref="AddMessageProcessor{TKey,TMessage,TMessageProcessor}"/> method
+    /// </summary>
+    /// <param name="consumerConfigurationName">Name of specific consumer configuration section</param>
+    /// <param name="shouldSkipMessageProcessorIfAlreadyRegistered">
+    /// Indicates whether message processor registration is skipped in case of already existing processor for given key/value type pair
+    /// </param>
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TMessage"></typeparam>
+    /// <typeparam name="TWorker">The class to which a hosted consumer service should be started. It's recommended to inherit <see cref="AsyncConsumer{TKey,TValue}"/></typeparam>
+    /// <typeparam name="TEventsHandler">
+    /// Events handler to be applied to the consumer. Might be null. If not sure what to use, simply add <see cref="KafkaEventsHandler"/>
+    /// </typeparam>
+    /// <typeparam name="TMessageProcessor">
+    /// Message processor that would be used for processing messages. It's recommended to inherit <see cref="MessageProcessor{TKey,TValue}"/>
+    /// </typeparam>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown in case <see cref="consumerConfigurationName"/> is missing from <see cref="KafkaConfiguration"/>
+    /// </exception>
+    public static IServiceCollection AddConsumerService<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler, TKeyDeserializer, TValueDeserializer>(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration, 
+        string consumerConfigurationName,
+        bool shouldSkipMessageProcessorIfAlreadyRegistered)
+        where TWorker : class, IHostedService
+        where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
+        where TEventsHandler : class, IConsumerEventsHandler
+        where TKeyDeserializer : class, IDeserializer<TKey>
+        where TValueDeserializer : class, IDeserializer<TMessage>
+    {
+        serviceCollection.TryAddSingleton<TKeyDeserializer>();
+        serviceCollection.TryAddSingleton<TValueDeserializer>();
+        serviceCollection.TryAddSingleton<TEventsHandler>();
+
+        if (shouldSkipMessageProcessorIfAlreadyRegistered)
+        {
+            serviceCollection.TryAddSingleton<IMessageProcessor<TKey, TMessage>, TMessageProcessor>();
+        }
+        else
+        {
+            serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
+        }
+        
+        var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
+        if (!kafkaConfig.Consumers.TryGetValue(consumerConfigurationName, out var consumerConfiguration))
+            throw new InvalidOperationException(string.Format(
+                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
+                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+
+        return serviceCollection
+            .AddSingleton(provider =>
+                StaticConsumerBuilder.AddConsumerBuilder(consumerConfiguration,
+                    provider.GetService<TKeyDeserializer>(),
+                    provider.GetService<TValueDeserializer>(),
+                    provider.GetService<TEventsHandler>()))
+            .AddHostedService<TWorker>();
+    }
+    
+    public static void AddKafkaConfiguration(this IServiceCollection serviceCollection, IConfiguration configuration, string configKey) 
         => serviceCollection.Configure<KafkaConfiguration>(configuration.GetSection(configKey));
 
     public static KafkaConfiguration GetKafkaConfiguration(this IConfiguration configuration, string configKey)
@@ -21,6 +250,41 @@ public static class DependencyInjection
         //Apply more specific validations if needed, for the sake this example app it's enough
         
         return kafkaInstanceConfig;
+    }
+    
+    /* -------------------------------------------------------------------------------------------------------------------------
+     *                                          !!!!!!!!!!!!  IMPORTANT !!!!!!!!!!!!
+     *  Methods below directly inject IConsumer/IProducer and
+     * are not planned to be used for the examples of this solution with AsyncConsumerService/AsyncDynamicConsumerService
+     * that are operating via specific builders.
+     *
+     * They are left here to play with them if you want. Can be useful in more casual approach without the builders.
+     * -------------------------------------------------------------------------------------------------------------------------
+     */
+    
+    public static IServiceCollection AddProducer<TKey, TMessage, TEventsHandler, TKeySerializer, TValueSerializer>(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration, 
+        string producerConfigurationName)
+        where TEventsHandler : class, ISharedEventsHandler
+        where TKeySerializer : class, ISerializer<TKey>
+        where TValueSerializer : class, ISerializer<TMessage>
+    {
+        serviceCollection.TryAddSingleton<TEventsHandler>();
+        serviceCollection.TryAddSingleton<TKeySerializer>();
+        serviceCollection.TryAddSingleton<TValueSerializer>();
+        
+        var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
+        if (!kafkaConfig.Producers.TryGetValue(producerConfigurationName, out var consumerConfiguration))
+            throw new InvalidOperationException(string.Format(
+                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
+                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+
+        return serviceCollection.AddSingleton(provider =>
+            StaticProducerBuilder.BuildProducer(consumerConfiguration,
+                provider.GetService<TKeySerializer>(),
+                provider.GetService<TValueSerializer>(),
+                provider.GetService<TEventsHandler>()));
     }
     
     public static IServiceCollection AddConsumer<TKey, TMessage, TEventsHandler, TKeyDeserializer, TValueDeserializer>(
@@ -46,30 +310,27 @@ public static class DependencyInjection
                 provider.GetService<TKeyDeserializer>(),
                 provider.GetService<TValueDeserializer>(),
                 provider.GetService<TEventsHandler>()));
-    }
+    } 
     
-    public static IServiceCollection AddProducer<TKey, TMessage, TEventsHandler, TKeySerializer, TValueSerializer>(
+    public static IServiceCollection AddConsumerWithDefaultDeserializers<TKey, TMessage, TEventsHandler>(
         this IServiceCollection serviceCollection,
         IConfiguration configuration, 
-        string producerConfigurationName)
-        where TEventsHandler : class, ISharedEventsHandler
-        where TKeySerializer : class, ISerializer<TKey>
-        where TValueSerializer : class, ISerializer<TMessage>
+        string consumerConfigurationName)
+        where TEventsHandler : class, IConsumerEventsHandler
     {
         serviceCollection.TryAddSingleton<TEventsHandler>();
-        serviceCollection.TryAddSingleton<TKeySerializer>();
-        serviceCollection.TryAddSingleton<TValueSerializer>();
         
         var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
-        if (!kafkaConfig.Producers.TryGetValue(producerConfigurationName, out var consumerConfiguration))
+        if (!kafkaConfig.Consumers.TryGetValue(consumerConfigurationName, out var consumerConfiguration))
             throw new InvalidOperationException(string.Format(
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
-        return serviceCollection.AddSingleton(provider =>
-            StaticProducerBuilder.BuildProducer(consumerConfiguration,
-                provider.GetService<TKeySerializer>(),
-                provider.GetService<TValueSerializer>(),
+        return serviceCollection
+            .AddSingleton(provider =>
+            StaticConsumerBuilder.BuildConsumer<TKey, TMessage>(consumerConfiguration,
+                keyDeserializer: null,
+                valueDeserializer: null,
                 provider.GetService<TEventsHandler>()));
     }
 }

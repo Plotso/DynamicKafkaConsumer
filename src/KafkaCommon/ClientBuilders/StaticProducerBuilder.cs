@@ -12,6 +12,7 @@ public class StaticProducerBuilder
         ISerializer<TMessage> valueSerializer,
         ISharedEventsHandler? eventsHandler) 
         => BuildProducer(config.Settings, keySerializer, valueSerializer, eventsHandler);
+    
     public static IProducer<TKey, TMessage> BuildProducer<TKey, TMessage>(
         IEnumerable<KeyValuePair<string, string>> config,
         ISerializer<TKey> keySerializer,
