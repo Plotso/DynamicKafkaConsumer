@@ -1,6 +1,6 @@
 ﻿namespace DynamicKafkaConsumer.Controllers;
 
-using KafkaCommon.Services.Interfaces;
+using KafkaCommon.Services.Consumers.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Models;
 

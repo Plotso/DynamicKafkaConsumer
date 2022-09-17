@@ -41,6 +41,25 @@ Example is with a consumer using separate MessageProcessor class.
 As it can be seen, KafkaCommon is designed in such way that for default consumers you won't need anything more than just creating a consumer with specific name and inheriting [AsyncDynamicConsumer](src/KafkaCommon/Services/DynamicConsumer/AsyncDynamicConsumer.cs). The AsyncDynamicConsumer contains all required logic for starting a normal consumer.
 **Only ConsumerConfigurationName must be overriden** to provide the configuration section name from which the services would read required kafka specific settings.
 
+# [Basic Consumers](src/KafkaCommon/Services/Consumers/BasicConsumer)
+Since the shown examples for Consumer/DynamicConsumer are more complex and oblige the user to use MessageProcessor, solution also offer ***a basic, more simplified, approach***.
+The basic consumer use different approach to construction, leaving the build logic in the hands of the user.
+The **difference** here is that for each consumer **the user needs a new Consumer inheritor in the project**.
+
+Usage is relatively simple, implementation in service can override the ShouldProcess method and also it must pass logic of how to handle each message. Everything else is done behind the scenes in the abstract classes.
+The basic implementation also provides option to consume with timeout provided rather than cancellationToken.
+
+### NOTE: 
+Basic consumers use JsonSerializer for the value with the idea of the message to be gziped on producer side.
+
+### Example usage for basic consumers:
+* Consumer classes can optionally be created with custom logic for config section & ShouldProcessMessage. [Here are examples for normal and dynamic consumer](src/DynamicKafkaConsumer/Consumers/BasicConsumers).
+* Background services **must** be started as well to enable endless consumption.  [Here are examples for normal and dynamic consumers](src/DynamicKafkaConsumer/Services/BasicConsumersBackgroundServices).
+
+# [Basic Producer](src/KafkaCommon/Services/Producers/BasicProducer.cs)
+A very simple implementation for a kafka producer. It's configured what key & value to use. User must pass also value serializer.
+Example usage can be found in [BasicSportInfoMessageProducer](src/DynamicKafkaConsumer/Producers/BasicSportInfoMessageProducer.cs).
+
 # Prerequisites
 
 In order to be sure you can run the project, make sure you have the following frameworks installed on your PC:

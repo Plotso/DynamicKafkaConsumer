@@ -6,14 +6,14 @@ using Configuration;
 
 public static class StaticConsumerBuilder
 {
-    
     public static ConsumerBuilderTopic<TKey, TMessage> AddConsumerBuilder<TKey, TMessage>(
         TopicConfiguration config,
         IDeserializer<TKey>? keyDeserializer,
         IDeserializer<TMessage>? valueDeserializer,
-        IConsumerEventsHandler? eventsHandler)
+        IConsumerEventsHandler? eventsHandler,
+        string configurationSectionName)
     {
-        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics);
+        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics, configurationSectionName);
         if (keyDeserializer != null)
             consumerBuilder.SetKeyDeserializer(keyDeserializer);
         if (valueDeserializer != null)
@@ -27,9 +27,10 @@ public static class StaticConsumerBuilder
         TopicConfiguration config,
         IDeserializer<TKey>? keyDeserializer,
         IDeserializer<TMessage>? valueDeserializer,
-        IConsumerEventsHandler? eventsHandler)
+        IConsumerEventsHandler? eventsHandler,
+        string configurationSectionName)
     {
-        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics);
+        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics, configurationSectionName);
         if (keyDeserializer != null)
             consumerBuilder.SetKeyDeserializer(keyDeserializer);
         if (valueDeserializer != null)
@@ -41,9 +42,10 @@ public static class StaticConsumerBuilder
     
     public static IConsumer<TKey, TMessage> BuildConsumerWithDefaultDeserializers<TKey, TMessage>(
         TopicConfiguration config,
-        IConsumerEventsHandler? eventsHandler)
+        IConsumerEventsHandler? eventsHandler,
+        string configurationSectionName)
     {
-        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics);
+        var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics, configurationSectionName);
         consumerBuilder.AddEventHandlers(eventsHandler);
         return consumerBuilder.Build();
     }

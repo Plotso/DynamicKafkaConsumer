@@ -3,6 +3,7 @@
 using Confluent.Kafka;
 using Contracts;
 using KafkaCommon.Services;
+using KafkaCommon.Services.Consumers;
 
 public class SportInfoMessageProcessor : MessageProcessor<string, SportInfoMessage>
 {

@@ -1,4 +1,4 @@
-﻿namespace KafkaCommon.Services.DynamicConsumer;
+﻿namespace KafkaCommon.Services.Consumers.DynamicConsumer;
 
 using System.Collections.Concurrent;
 using Interfaces;
@@ -38,7 +38,7 @@ public class DynamicConsumerModifier<TConsumerKey> : IDynamicConsumerModifier<TC
         }
         catch (Exception ex)
         {
-            _logger.LogError($"An error occured during {actionName}", ex);
+            _logger.LogError(ex, $"An error occured during {actionName}");
         }
     }
 }

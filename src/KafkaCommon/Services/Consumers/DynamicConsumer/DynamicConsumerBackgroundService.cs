@@ -1,10 +1,10 @@
-﻿namespace KafkaCommon.Services.DynamicConsumer;
+﻿namespace KafkaCommon.Services.Consumers.DynamicConsumer;
 
 using Confluent.Kafka;
-using Abstractions;
-using ClientBuilders;
-using Configuration;
 using Interfaces;
+using KafkaCommon.Abstractions;
+using KafkaCommon.ClientBuilders;
+using KafkaCommon.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -23,6 +23,8 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
         _kafkaConfiguration = kafkaConfiguration;
         _eventsHandler = eventsHandler;
         _logger = logger;
+        
+        NotCommittedMessagesCount = 0;
     }
 
     protected CancellationToken StoppingToken
@@ -31,6 +33,11 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
     protected IConsumer<TKey, TValue> Consumer { get; set; }
     protected TopicConfiguration ConsumerConfiguration { get; set; }
     protected IConsumer<TKey, byte[]> ByteConsumer { get; set; }
+        
+    protected int NotCommittedMessagesCount { get; set; }
+
+    protected virtual bool ManuallyHandleOffsetCommit => false;
+    public List<TopicPartition> PartitionsAssigned() => Consumer.Assignment;
 
     public abstract Task StartAsync(CancellationToken cancellationToken);
 
@@ -63,7 +70,7 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
         }
         catch (Exception e)
         {
-            _logger.LogError($"An error occured during {nameof(IsConsumerSet)}", e);
+            _logger.LogError(e, $"An error occured during {nameof(IsConsumerSet)}");
             return false;
         }
     }
@@ -81,10 +88,12 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
         if (_kafkaConfiguration.CurrentValue.Consumers.TryGetValue(consumerConfigurationName, out var configuration))
         {
             if (IsGuidPlaceholderMissingFromGroupId(configuration))
-            {
                 configuration.Settings["group.id"] = Constants.GroupIdGuidPlaceholder;
-            }
-            Consumer = StaticConsumerBuilder.BuildConsumer(configuration, keyDeserializer, valueDeserializer, _eventsHandler);
+
+            if (!configuration.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseSettings.Topics.Any())
+                configuration.Topics = _kafkaConfiguration.CurrentValue.BaseSettings.Topics;
+            
+            Consumer = StaticConsumerBuilder.BuildConsumer(configuration, keyDeserializer, valueDeserializer, _eventsHandler, consumerConfigurationName);
             ConsumerConfiguration = configuration;
         }
     }
@@ -96,6 +105,42 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
             Consumer?.Close();
             Consumer?.Dispose();
         } catch (ObjectDisposedException)  { /* suppress */ }
+    }
+
+    public void ManuallyCommitOffset(ConsumeResult<TKey, TValue> consumeResult) => Consumer.Commit(consumeResult);
+
+    public void ManuallyCommitOffset(IEnumerable<TopicPartitionOffset> offsets) => Consumer.Commit(offsets);
+    
+    // Executes CommitOffset but suppresses any potential exception
+    protected void SafeCommitOffset()
+    {
+        try
+        {
+            CommitOffset();
+        }
+        catch (Exception){ /* suppress */ }
+    }
+
+    protected void CommitOffset()
+    {
+        if (ManuallyHandleOffsetCommit)
+            return;
+            
+        if (NotCommittedMessagesCount > 0)
+            Consumer.Commit();
+    }
+
+    protected void HandleNotCommittedOffsets()
+    {
+        NotCommittedMessagesCount++;
+        if (ManuallyHandleOffsetCommit)
+            return;
+            
+        if (NotCommittedMessagesCount >= ConsumerConfiguration.MaxNotCommittedMessages)
+        {
+            Consumer.Commit();
+            NotCommittedMessagesCount = 0;
+        }
     }
 
     private bool IsGuidPlaceholderMissingFromGroupId(TopicConfiguration configuration)

@@ -1,4 +1,4 @@
-﻿namespace KafkaCommon.Services.Interfaces;
+﻿namespace KafkaCommon.Services.Consumers.Interfaces;
 
 using Confluent.Kafka;
 

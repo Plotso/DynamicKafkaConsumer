@@ -1,27 +1,28 @@
-﻿namespace KafkaCommon.Services.DynamicConsumer;
+﻿namespace KafkaCommon.Services.Consumers;
 
 using Interfaces;
-using KafkaCommon.Abstractions;
+using KafkaCommon.ClientBuilders;
 using KafkaCommon.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 /// <summary>
 /// Contains base logic required for a consumer to subscribe to topics and to work with collection of <see cref="IMessageProcessor{TKey,TMessage}"/>
-///  It's a standalone class since the base class <see cref="DynamicConsumerBackgroundService{TKey,TValue}"/> might be used in a place where it won't depend
+///  It's a standalone class since the base class <see cref="ConsumerBackgroundService{TKey,TValue}"/> might be used in a place where it won't depend
 /// on IMessageProcessors so new ConsumerWorker would be required
 /// </summary>
-public abstract class DynamicConsumerWorker<TKey, TValue> : DynamicConsumerBackgroundService<TKey, TValue>, IPartitionConsumer<TKey, TValue>
+public abstract class ConsumerWorker<TKey, TValue> : ConsumerBackgroundService<TKey, TValue>, IPartitionConsumer<TKey, TValue>
 {
-    public DynamicConsumerWorker(
+    public ConsumerWorker(
         IEnumerable<IMessageProcessor<TKey, TValue>> messageProcessors,
+        ConsumerBuilderTopic<TKey, TValue> builder,
         IOptionsMonitor<KafkaConfiguration> kafkaConfiguration,
-        IConsumerEventsHandler? eventsHandler,
         ILogger logger) 
-        : base(kafkaConfiguration, eventsHandler, logger)
+        : base(builder, kafkaConfiguration)
     {
         MessageProcessors = messageProcessors;
         Logger = logger;
+        BuildConsumer();
     }
     protected IEnumerable<IMessageProcessor<TKey, TValue>> MessageProcessors { get; }
     protected ILogger Logger { get; }
@@ -57,11 +58,11 @@ public abstract class DynamicConsumerWorker<TKey, TValue> : DynamicConsumerBackg
         {
             try
             {
-                Consumer.Subscribe(ConsumerConfiguration.Topics);
+                Consumer.Subscribe(Builder.Topics);
             }
             catch (Exception e)
             {
-                Logger.LogError(e, $"Failed to subscribe to topics: {ConsumerConfiguration.Topics}");
+                Logger.LogError(e, $"Failed to subscribe to topics: {Builder.Topics}");
             }
         } while (!isSubscribed && !cancellationToken.IsCancellationRequested);
     }
@@ -84,7 +85,7 @@ public abstract class DynamicConsumerWorker<TKey, TValue> : DynamicConsumerBackg
             }
             catch (Exception e)
             {
-                Logger.LogError(e, $"Failed to unsubscribe from topics: {ConsumerConfiguration.Topics}");
+                Logger.LogError(e, $"Failed to unsubscribe from topics: {Builder.Topics}");
             }
 
             Thread.Sleep(25);

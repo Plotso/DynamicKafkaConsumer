@@ -5,14 +5,17 @@ using Confluent.Kafka;
 
 public class ConsumerBuilderTopic<TKey, TValue> : ConsumerBuilder<TKey, TValue>
 {
-    public ConsumerBuilderTopic(TopicConfiguration configuration) 
-        : this(configuration.Settings, configuration.Topics)
+    public ConsumerBuilderTopic(TopicConfiguration configuration, string configurationSectionName) 
+        : this(configuration.Settings, configuration.Topics, configurationSectionName)
     { }
-    public ConsumerBuilderTopic(IEnumerable<KeyValuePair<string, string>> config, List<string> topics) 
+    public ConsumerBuilderTopic(IEnumerable<KeyValuePair<string, string>> config, List<string> topics, string configurationSectionName) 
         : base(ReplaceConsumerGroupPlaceholders(config))
     {
         Topics = topics;
+        ConfigurationSectionName = configurationSectionName;
     }
+    
+    public string ConfigurationSectionName { get; set; }
     
     public List<string> Topics { get; }
     

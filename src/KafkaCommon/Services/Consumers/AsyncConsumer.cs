@@ -1,9 +1,10 @@
-﻿namespace KafkaCommon.Services;
+﻿namespace KafkaCommon.Services.Consumers;
 
-using Abstractions;
-using ClientBuilders;
 using Interfaces;
+using KafkaCommon.ClientBuilders;
+using KafkaCommon.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// Fully functional consumer service.
@@ -18,8 +19,9 @@ public class AsyncConsumer<TKey, TValue> : ConsumerWorker<TKey, TValue>
     public AsyncConsumer(
         ConsumerBuilderTopic<TKey, TValue> builder,
         IEnumerable<IMessageProcessor<TKey, TValue>> messageProcessors,
+        IOptionsMonitor<KafkaConfiguration> kafkaConfiguration,
         ILogger logger) 
-        : base(messageProcessors, builder, logger)
+        : base(messageProcessors, builder, kafkaConfiguration, logger)
     { }
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -37,6 +39,7 @@ public class AsyncConsumer<TKey, TValue> : ConsumerWorker<TKey, TValue>
             }
             finally
             {
+                CommitOffset();
                 Unsubscribe(cancellationToken);
             }
         }
@@ -77,7 +80,7 @@ public class AsyncConsumer<TKey, TValue> : ConsumerWorker<TKey, TValue>
                     }
                 }
                 
-                //ToDo: Add custom logic for commiting offsets
+                HandleNotCommittedOffsets();
             }
             catch (Exception e)
             {

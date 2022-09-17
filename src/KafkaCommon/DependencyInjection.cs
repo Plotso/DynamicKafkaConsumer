@@ -9,8 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Services;
-using Services.DynamicConsumer;
-using Services.Interfaces;
+using Services.Consumers;
+using Services.Consumers.DynamicConsumer;
+using Services.Consumers.Interfaces;
 
 public static class DependencyInjection
 {
@@ -63,7 +64,7 @@ public static class DependencyInjection
             serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
         }
         
-        serviceCollection.TryAddSingleton<TEventsHandler>();
+        serviceCollection.TryAddSingleton<IConsumerEventsHandler, TEventsHandler>();
         serviceCollection.TryAddSingleton<TKeyDeserializer>();
         serviceCollection.TryAddSingleton<TValueDeserializer>();
         serviceCollection.TryAddSingleton<IDynamicConsumerModifier<TKey>, DynamicConsumerModifier<TKey>>();
@@ -115,10 +116,9 @@ public static class DependencyInjection
             serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
         }
         
-        serviceCollection.TryAddSingleton<TEventsHandler>();
+        serviceCollection.TryAddSingleton<IConsumerEventsHandler, TEventsHandler>();
         serviceCollection.TryAddSingleton<IDynamicConsumerModifier<TKey>, DynamicConsumerModifier<TKey>>();
-        serviceCollection
-            .AddHostedService<TWorker>();
+        serviceCollection.AddHostedService<TWorker>();
         
         return serviceCollection;
     } 
@@ -170,12 +170,16 @@ public static class DependencyInjection
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
+        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
+            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
+
         return serviceCollection
             .AddSingleton(provider =>
                 StaticConsumerBuilder.AddConsumerBuilder<TKey, TMessage>(consumerConfiguration,
                     keyDeserializer: null,
                     valueDeserializer: null,
-                    provider.GetService<TEventsHandler>()))
+                    provider.GetService<TEventsHandler>(),
+                    consumerConfigurationName))
             .AddHostedService<TWorker>();
     }
     
@@ -230,12 +234,16 @@ public static class DependencyInjection
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
+        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
+            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
+        
         return serviceCollection
             .AddSingleton(provider =>
                 StaticConsumerBuilder.AddConsumerBuilder(consumerConfiguration,
                     provider.GetService<TKeyDeserializer>(),
                     provider.GetService<TValueDeserializer>(),
-                    provider.GetService<TEventsHandler>()))
+                    provider.GetService<TEventsHandler>(),
+                    consumerConfigurationName))
             .AddHostedService<TWorker>();
     }
     
@@ -275,13 +283,13 @@ public static class DependencyInjection
         serviceCollection.TryAddSingleton<TValueSerializer>();
         
         var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
-        if (!kafkaConfig.Producers.TryGetValue(producerConfigurationName, out var consumerConfiguration))
+        if (!kafkaConfig.Producers.TryGetValue(producerConfigurationName, out var producerConfiguration))
             throw new InvalidOperationException(string.Format(
-                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
-                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+                "There is no configuration present in kafka section {kafkaSection} for producer {producer}",
+                Constants.KafkaConfigurationSectionName, producerConfiguration));
 
         return serviceCollection.AddSingleton(provider =>
-            StaticProducerBuilder.BuildProducer(consumerConfiguration,
+            StaticProducerBuilder.BuildProducer(producerConfiguration,
                 provider.GetService<TKeySerializer>(),
                 provider.GetService<TValueSerializer>(),
                 provider.GetService<TEventsHandler>()));
@@ -305,11 +313,15 @@ public static class DependencyInjection
                     "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                     Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
+        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
+            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
+
         return serviceCollection.AddSingleton(provider =>
             StaticConsumerBuilder.BuildConsumer(consumerConfiguration,
                 provider.GetService<TKeyDeserializer>(),
                 provider.GetService<TValueDeserializer>(),
-                provider.GetService<TEventsHandler>()));
+                provider.GetService<TEventsHandler>(),
+                consumerConfigurationName));
     } 
     
     public static IServiceCollection AddConsumerWithDefaultDeserializers<TKey, TMessage, TEventsHandler>(
@@ -326,11 +338,17 @@ public static class DependencyInjection
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
+        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
+            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
+
         return serviceCollection
             .AddSingleton(provider =>
             StaticConsumerBuilder.BuildConsumer<TKey, TMessage>(consumerConfiguration,
                 keyDeserializer: null,
                 valueDeserializer: null,
-                provider.GetService<TEventsHandler>()));
+                provider.GetService<TEventsHandler>(),
+                consumerConfigurationName));
     }
+    
+    
 }

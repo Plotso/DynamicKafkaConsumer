@@ -1,26 +1,27 @@
-﻿namespace KafkaCommon.Services;
+﻿namespace KafkaCommon.Services.Consumers.DynamicConsumer;
 
-using Abstractions;
-using ClientBuilders;
 using Interfaces;
+using KafkaCommon.Abstractions;
+using KafkaCommon.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// Contains base logic required for a consumer to subscribe to topics and to work with collection of <see cref="IMessageProcessor{TKey,TMessage}"/>
-///  It's a standalone class since the base class <see cref="ConsumerBackgroundService{TKey,TValue}"/> might be used in a place where it won't depend
+///  It's a standalone class since the base class <see cref="DynamicConsumerBackgroundService{TKey,TValue}"/> might be used in a place where it won't depend
 /// on IMessageProcessors so new ConsumerWorker would be required
 /// </summary>
-public abstract class ConsumerWorker<TKey, TValue> : ConsumerBackgroundService<TKey, TValue>, IPartitionConsumer<TKey, TValue>
+public abstract class DynamicConsumerWorker<TKey, TValue> : DynamicConsumerBackgroundService<TKey, TValue>, IPartitionConsumer<TKey, TValue>
 {
-    public ConsumerWorker(
+    public DynamicConsumerWorker(
         IEnumerable<IMessageProcessor<TKey, TValue>> messageProcessors,
-        ConsumerBuilderTopic<TKey, TValue> builder,
+        IOptionsMonitor<KafkaConfiguration> kafkaConfiguration,
+        IConsumerEventsHandler? eventsHandler,
         ILogger logger) 
-        : base(builder)
+        : base(kafkaConfiguration, eventsHandler, logger)
     {
         MessageProcessors = messageProcessors;
         Logger = logger;
-        BuildConsumer();
     }
     protected IEnumerable<IMessageProcessor<TKey, TValue>> MessageProcessors { get; }
     protected ILogger Logger { get; }
@@ -56,11 +57,11 @@ public abstract class ConsumerWorker<TKey, TValue> : ConsumerBackgroundService<T
         {
             try
             {
-                Consumer.Subscribe(Builder.Topics);
+                Consumer.Subscribe(ConsumerConfiguration.Topics);
             }
             catch (Exception e)
             {
-                Logger.LogError(e, $"Failed to subscribe to topics: {Builder.Topics}");
+                Logger.LogError(e, $"Failed to subscribe to topics: {ConsumerConfiguration.Topics}");
             }
         } while (!isSubscribed && !cancellationToken.IsCancellationRequested);
     }
@@ -83,7 +84,7 @@ public abstract class ConsumerWorker<TKey, TValue> : ConsumerBackgroundService<T
             }
             catch (Exception e)
             {
-                Logger.LogError(e, $"Failed to unsubscribe from topics: {Builder.Topics}");
+                Logger.LogError(e, $"Failed to unsubscribe from topics: {ConsumerConfiguration.Topics}");
             }
 
             Thread.Sleep(25);

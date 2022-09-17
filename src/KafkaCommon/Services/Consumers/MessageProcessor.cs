@@ -1,4 +1,4 @@
-﻿namespace KafkaCommon.Services;
+﻿namespace KafkaCommon.Services.Consumers;
 
 using Confluent.Kafka;
 using Interfaces;
@@ -24,7 +24,7 @@ public abstract class MessageProcessor<TKey, TValue> : IMessageProcessor<TKey, T
 
         if (consumeResult.Message is null)
         {
-            _logger.LogError($"Skipping message consumption due to consumeResult.Message = null");
+            _logger.LogError("Skipping message consumption due to consumeResult.Message = null");
             return new ValueTask<bool>(false);
         }
 

@@ -3,8 +3,8 @@
 using Contracts;
 using KafkaCommon.Abstractions;
 using KafkaCommon.Configuration;
-using KafkaCommon.Services.DynamicConsumer;
-using KafkaCommon.Services.Interfaces;
+using KafkaCommon.Services.Consumers.DynamicConsumer;
+using KafkaCommon.Services.Consumers.Interfaces;
 using Microsoft.Extensions.Options;
 
 public class DynamicConsumer : AsyncDynamicConsumer<string, SportInfoMessage>
