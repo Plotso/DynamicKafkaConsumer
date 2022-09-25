@@ -67,7 +67,7 @@ In order to be sure you can run the project, make sure you have the following fr
 * **Docker** - if you want to test with kafka provided in the solution, you need to have installed Docker. Otherwise, you need to connect to an existing kafka instance somewhere.
 
 It's good to have the following software products installed in order to be sure the project is running as expected:
-* **VisualStudio 2022 / Rider 2022** - built and tested on both of those IDEs, the project should also be running on any newer version as long as it supports the above mentioned frameworks
+* **VisualStudio 2022 / Rider 2022** - built and tested on both of those IDEs, the project should also be running on any newer version as long as it supports the above mentioned frameworks [^1]
 
 # Kafka Installation
 The docker-compose.yml file contains required logic to start locally a 
@@ -129,3 +129,6 @@ Steps to start the project:
 ## License
 
 This project is licensed under the GPL-3.0 License - see the [LICENSE.md](LICENSE.md) file for details
+
+
+[^1]: It's not mandatory to use the mentioned software application. Any IDE supporting .NET 6 should do the job. Same goes for the .NET command-line interface (CLI).
