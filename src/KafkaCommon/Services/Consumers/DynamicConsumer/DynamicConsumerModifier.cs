@@ -22,7 +22,7 @@ public class DynamicConsumerModifier<TConsumerKey> : IDynamicConsumerModifier<TC
             {
                 //ToDo: Move log below to caller
                 _logger.LogInformation($"Setting keys to: {string.Join(" ,", consumerKeys)}");
-                _configuredKeys = consumerKeys as ConcurrentBag<TConsumerKey>;
+                _configuredKeys = new ConcurrentBag<TConsumerKey>(consumerKeys);
             },
             nameof(SetKeysToConsumer));
 

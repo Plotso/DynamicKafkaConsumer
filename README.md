@@ -60,6 +60,8 @@ Basic consumers use JsonSerializer for the value with the idea of the message to
 A very simple implementation for a kafka producer. It's configured what key & value to use. User must pass also value serializer.
 Example usage can be found in [BasicSportInfoMessageProducer](src/DynamicKafkaConsumer/Producers/BasicSportInfoMessageProducer.cs).
 
+The producer is used inside [](src/DynamicKafkaConsumer/Controllers/SportInfoMessageController.cs) to produce messages send to the endpoint. It's done like this for demo purposes.
+
 # Prerequisites
 
 In order to be sure you can run the project, make sure you have the following frameworks installed on your PC:
@@ -131,4 +133,4 @@ Steps to start the project:
 This project is licensed under the GPL-3.0 License - see the [LICENSE.md](LICENSE.md) file for details
 
 
-[^1]: It's not mandatory to use the mentioned software application. Any IDE supporting .NET 6 should do the job. Same goes for the .NET command-line interface (CLI).
+[^1]: It's not mandatory to use the mentioned software applications. Any IDE supporting .NET 6 should do the job. Same goes for the .NET command-line interface (CLI).

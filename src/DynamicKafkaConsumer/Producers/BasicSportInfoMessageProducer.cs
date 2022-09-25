@@ -1,6 +1,5 @@
 ﻿namespace DynamicKafkaConsumer.Producers;
 
-using Confluent.Kafka;
 using Contracts;
 using KafkaCommon.Configuration;
 using KafkaCommon.Serialization;
@@ -13,4 +12,6 @@ public class BasicSportInfoMessageProducer : BasicProducer<string, SportInfoMess
         : base(kafkaConfiguration, serializer)
     {
     }
+
+    protected override string ConfigurationSectionName => nameof(BasicSportInfoMessageProducer);
 }

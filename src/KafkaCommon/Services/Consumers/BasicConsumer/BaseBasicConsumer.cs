@@ -4,6 +4,7 @@ using System.Text.Json;
 using Confluent.Kafka;
 using Abstractions;
 using Configuration;
+using Extensions;
 using Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -24,9 +25,9 @@ public abstract class BaseBasicConsumer<TKey, TValue> where TValue : class
             _serializer = serializer;
 
             Config = config.CurrentValue;
+            ConsumerConfig = Config.Consumers[ConsumerConfigurationName];
             ConfigureConsumerTopics();
             MergeConsumerSettings();
-            ConsumerConfig = Config.Consumers[ConsumerConfigurationName];
             
             NotCommittedMessagesCount = 0;
             _readonlyConsumerConfig = Config;
@@ -173,11 +174,11 @@ public abstract class BaseBasicConsumer<TKey, TValue> where TValue : class
         /// <exception cref="ArgumentException"></exception>
         private void ConfigureConsumerTopics()
         {
-            if (!Config.Consumers[ConsumerConfigurationName].Topics.Any())
+            if (ConsumerConfig.Topics.IsNullOrEmpty())
             {
-                if (Config.BaseConfig.Topics.Any())
+                if (!Config.BaseConfig.Topics.IsNullOrEmpty())
                 {
-                    Config.Consumers[ConsumerConfigurationName].Topics = Config.BaseConfig.Topics;
+                    ConsumerConfig.Topics = Config.BaseConfig.Topics;
                 }
                 else
                 {

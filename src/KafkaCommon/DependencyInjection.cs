@@ -4,6 +4,7 @@ using Abstractions;
 using ClientBuilders;
 using Configuration;
 using Confluent.Kafka;
+using Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -376,10 +377,14 @@ public static class DependencyInjection
     /// </summary>
     private static void MergeKafkaConfigurations(KafkaConfiguration config, TopicConfiguration topicConfiguration)
     {
-        if (config.BaseConfig == null || (config.BaseConfig.Topics == null && config.BaseConfig == null)) 
+        var baseConfig = config.BaseConfig;
+        if (config == null || (baseConfig.Topics == null && baseConfig == null)) 
             return;
+
+        if (topicConfiguration.Topics.IsNullOrEmpty() && baseConfig.Topics.IsNullOrEmpty())
+            throw new ArgumentNullException("No topics provided neither in base nor topic configurations");
         
-        if (!topicConfiguration.Topics.Any() && config.BaseConfig.Topics.Any())
+        if (topicConfiguration.Topics == null || !topicConfiguration.Topics.Any() && config.BaseConfig.Topics.Any())
             topicConfiguration.Topics = config.BaseConfig.Topics;
         
         var baseSettings = config.BaseConfig?.BaseSettings;

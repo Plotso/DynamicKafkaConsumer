@@ -2,6 +2,7 @@
 
 using Abstractions;
 using Confluent.Kafka;
+using Extensions;
 using Microsoft.Extensions.Logging;
 
 public class KafkaEventsHandler : IConsumerEventsHandler // IConsumerEventsHandler also brings ISharedEventsHandler

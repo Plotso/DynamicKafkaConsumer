@@ -2,6 +2,7 @@
 
 using Configuration;
 using Confluent.Kafka;
+using Extensions;
 using Microsoft.Extensions.Options;
 
 public class BasicProducer<TKey, TValue> : IDisposable
@@ -20,10 +21,14 @@ public class BasicProducer<TKey, TValue> : IDisposable
         _kafkaConfiguration = kafkaConfiguration;
         ProducerConfig = _kafkaConfiguration.CurrentValue.Producers[ConfigurationSectionName];
 
-        if (!ProducerConfig.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseConfig.Topics.Any())
+        if (ProducerConfig.Topics.IsNullOrEmpty() && _kafkaConfiguration.CurrentValue.BaseConfig.Topics.IsNullOrEmpty())
+            throw new ArgumentNullException($"No topics provided neither in base nor topic configurations for following producer configuration: {ConfigurationSectionName}");
+        
+        if (ProducerConfig.Topics.IsNullOrEmpty() && _kafkaConfiguration.CurrentValue.BaseConfig.Topics.Any())
             ProducerConfig.Topics = _kafkaConfiguration.CurrentValue.BaseConfig.Topics;
 
-        if (ProducerConfig.Settings.ContainsKey(CompressionTypeSetting))
+        MergeKafkaSettings();
+        if (!ProducerConfig.Settings.ContainsKey(CompressionTypeSetting))
             ProducerConfig.Settings.Add(CompressionTypeSetting, CompressionType.Gzip.ToString());
 
         _producer = new ProducerBuilder<TKey, TValue>(ProducerConfig.Settings)
@@ -90,5 +95,21 @@ public class BasicProducer<TKey, TValue> : IDisposable
     {
         Flush(ShutDownFlushTimeoutInMilliseconds);
         _producer.Dispose();
+    }
+    
+    private void MergeKafkaSettings()
+    {
+        var baseSettings = _kafkaConfiguration.CurrentValue.BaseConfig?.BaseSettings;
+        if (baseSettings != null && baseSettings.Any())
+        {
+            if (ProducerConfig.Settings == null)
+                ProducerConfig.Settings = new Dictionary<string, string>();
+            
+            foreach (var setting in baseSettings)
+            {
+                if (!ProducerConfig.Settings.ContainsKey(setting.Key))
+                    ProducerConfig.Settings.Add(setting.Key, setting.Value);
+            }
+        }
     }
 }

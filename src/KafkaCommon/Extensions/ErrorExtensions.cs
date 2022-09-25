@@ -1,4 +1,4 @@
-﻿namespace KafkaCommon;
+﻿namespace KafkaCommon.Extensions;
 
 using Confluent.Kafka;
 
