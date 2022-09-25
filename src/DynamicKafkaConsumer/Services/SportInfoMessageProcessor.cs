@@ -2,7 +2,6 @@
 
 using Confluent.Kafka;
 using Contracts;
-using KafkaCommon.Services;
 using KafkaCommon.Services.Consumers;
 
 public class SportInfoMessageProcessor : MessageProcessor<string, SportInfoMessage>
@@ -20,6 +19,6 @@ public class SportInfoMessageProcessor : MessageProcessor<string, SportInfoMessa
     protected override async Task Process(ConsumeResult<string, SportInfoMessage> consumeResult, CancellationToken cancellationToken = default)
     {
         //ToDo: Parse the raw part of the message to an actual msg
-        _logger.LogInformation($"Proccesing message with key: {consumeResult.Message.Key} & Value: {consumeResult.Message.Value}");
+        _logger.LogInformation($"[{nameof(SportInfoMessageProcessor)}] Proccesing message with key: {consumeResult.Message.Key} & Value: {consumeResult.Message.Value}");
     }
 }

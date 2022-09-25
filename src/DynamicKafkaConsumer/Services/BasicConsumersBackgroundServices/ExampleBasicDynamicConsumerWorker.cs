@@ -39,7 +39,7 @@ public class ExampleBasicDynamicConsumerWorker : BackgroundService
 
     private Task HandleMessage(Message<string, SportInfoMessage> message)
     {
-        _logger.LogInformation($"Proccesing message with key: {message.Key} & Value: {message.Value}");
+        _logger.LogInformation($"[{nameof(ExampleBasicDynamicConsumerWorker)}] Proccesing message with key: {message.Key} & Value: {message.Value}");
         return Task.CompletedTask;
     }
 }

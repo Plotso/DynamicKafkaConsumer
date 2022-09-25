@@ -21,8 +21,7 @@ public class ConsumerBuilderTopic<TKey, TValue> : ConsumerBuilder<TKey, TValue>
     
     public static IEnumerable<KeyValuePair<string, string>> ReplaceConsumerGroupPlaceholders(IEnumerable<KeyValuePair<string, string>> config) {
         const string GroupIdKey = "group.id";
-        var newConfig =
-            config.ToDictionary(s => s.Key, s => s.Value);
+        var newConfig = config.ToDictionary(s => s.Key, s => s.Value);
 
         if (newConfig.TryGetValue(GroupIdKey, out var value))
             newConfig[GroupIdKey] = FillInVariableValues(value);

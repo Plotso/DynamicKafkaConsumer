@@ -18,8 +18,7 @@ public static class StaticConsumerBuilder
             consumerBuilder.SetKeyDeserializer(keyDeserializer);
         if (valueDeserializer != null)
             consumerBuilder.SetValueDeserializer(valueDeserializer);
-
-        consumerBuilder.AddEventHandlers(eventsHandler);
+        
         return consumerBuilder;
     }
     
@@ -35,8 +34,9 @@ public static class StaticConsumerBuilder
             consumerBuilder.SetKeyDeserializer(keyDeserializer);
         if (valueDeserializer != null)
             consumerBuilder.SetValueDeserializer(valueDeserializer);
-
-        consumerBuilder.AddEventHandlers(eventsHandler);
+        if (eventsHandler != null)
+            consumerBuilder.AddEventHandlers(eventsHandler);
+        
         return consumerBuilder.Build();
     }
     
@@ -46,7 +46,8 @@ public static class StaticConsumerBuilder
         string configurationSectionName)
     {
         var consumerBuilder = new ConsumerBuilderTopic<TKey, TMessage>(config.Settings, config.Topics, configurationSectionName);
-        consumerBuilder.AddEventHandlers(eventsHandler);
+        if (eventsHandler != null)
+            consumerBuilder.AddEventHandlers(eventsHandler);
         return consumerBuilder.Build();
     }
 }

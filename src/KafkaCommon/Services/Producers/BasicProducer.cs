@@ -20,8 +20,8 @@ public class BasicProducer<TKey, TValue> : IDisposable
         _kafkaConfiguration = kafkaConfiguration;
         ProducerConfig = _kafkaConfiguration.CurrentValue.Producers[ConfigurationSectionName];
 
-        if (!ProducerConfig.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseSettings.Topics.Any())
-            ProducerConfig.Topics = _kafkaConfiguration.CurrentValue.BaseSettings.Topics;
+        if (!ProducerConfig.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseConfig.Topics.Any())
+            ProducerConfig.Topics = _kafkaConfiguration.CurrentValue.BaseConfig.Topics;
 
         if (ProducerConfig.Settings.ContainsKey(CompressionTypeSetting))
             ProducerConfig.Settings.Add(CompressionTypeSetting, CompressionType.Gzip.ToString());

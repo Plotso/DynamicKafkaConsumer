@@ -5,7 +5,7 @@
 /// </summary>
 public class KafkaConfiguration
 {
-    public KafkaBaseSettings BaseSettings { get; set; }
+    public KafkaBaseSettings BaseConfig { get; set; }
     public Dictionary<string, TopicConfiguration> Consumers { get; set; }
     
     public Dictionary<string, TopicConfiguration> Producers { get; set; }

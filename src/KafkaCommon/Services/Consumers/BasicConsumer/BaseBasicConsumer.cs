@@ -24,7 +24,8 @@ public abstract class BaseBasicConsumer<TKey, TValue> where TValue : class
             _serializer = serializer;
 
             Config = config.CurrentValue;
-            ConfigureConsumerTopics(config);
+            ConfigureConsumerTopics();
+            MergeConsumerSettings();
             ConsumerConfig = Config.Consumers[ConsumerConfigurationName];
             
             NotCommittedMessagesCount = 0;
@@ -169,19 +170,34 @@ public abstract class BaseBasicConsumer<TKey, TValue> where TValue : class
         /// <summary>
         /// Try to set Config.Topics to the topics from the configuration if any
         /// </summary>
-        /// <param name="config"></param>
         /// <exception cref="ArgumentException"></exception>
-        private void ConfigureConsumerTopics(IOptionsMonitor<KafkaConfiguration> config)
+        private void ConfigureConsumerTopics()
         {
             if (!Config.Consumers[ConsumerConfigurationName].Topics.Any())
             {
-                if (Config.BaseSettings.Topics.Any())
+                if (Config.BaseConfig.Topics.Any())
                 {
-                    Config.Consumers[ConsumerConfigurationName].Topics = Config.BaseSettings.Topics;
+                    Config.Consumers[ConsumerConfigurationName].Topics = Config.BaseConfig.Topics;
                 }
                 else
                 {
                     throw new ArgumentException($"No topic configured for consumer {ConsumerConfigurationName}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Merge base settings from config with consumer settings
+        /// </summary>
+        private void MergeConsumerSettings()
+        {
+            var baseSettings = Config.BaseConfig?.BaseSettings;
+            if (baseSettings != null && baseSettings.Any())
+            {
+                foreach (var setting in baseSettings)
+                {
+                    if (!ConsumerConfig.Settings.ContainsKey(setting.Key))
+                        ConsumerConfig.Settings.Add(setting.Key, setting.Value);
                 }
             }
         }

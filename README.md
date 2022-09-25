@@ -108,6 +108,12 @@ Following configuration might be used to access kafka for a consumer if no modif
   }
 ```
 
+# How to run the project
+Project can easily be started on any machine that meets the requirements mentioned in Prerequisites section.
+
+Steps to start the project:
+1. Spin up kafka following Kafka installation section above or adjust [appsettings.json](src/DynamicKafkaConsumer/appsettings.json) with bootstrap server of an existing Kafka 
+2. Run the project
 
 ## Built With
 

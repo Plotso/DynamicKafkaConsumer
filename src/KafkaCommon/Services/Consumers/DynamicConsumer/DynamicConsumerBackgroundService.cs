@@ -90,8 +90,8 @@ public abstract class DynamicConsumerBackgroundService<TKey, TValue> : IDynamicC
             if (IsGuidPlaceholderMissingFromGroupId(configuration))
                 configuration.Settings["group.id"] = Constants.GroupIdGuidPlaceholder;
 
-            if (!configuration.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseSettings.Topics.Any())
-                configuration.Topics = _kafkaConfiguration.CurrentValue.BaseSettings.Topics;
+            if (!configuration.Topics.Any() && _kafkaConfiguration.CurrentValue.BaseConfig.Topics.Any())
+                configuration.Topics = _kafkaConfiguration.CurrentValue.BaseConfig.Topics;
             
             Consumer = StaticConsumerBuilder.BuildConsumer(configuration, keyDeserializer, valueDeserializer, _eventsHandler, consumerConfigurationName);
             ConsumerConfiguration = configuration;

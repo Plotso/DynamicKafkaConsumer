@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Services;
 using Services.Consumers;
 using Services.Consumers.DynamicConsumer;
 using Services.Consumers.Interfaces;
@@ -44,8 +43,9 @@ public static class DependencyInjection
     public static IServiceCollection AddDynamicConsumerService<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler, TKeyDeserializer, TValueDeserializer>(
         this IServiceCollection serviceCollection,
         IConfiguration configuration, 
-        bool shouldSkipMessageProcessorIfAlreadyRegistered,
-        bool addKafkaConfigurationWithDefaultSectionName)
+        string consumerConfigurationName,
+        bool shouldSkipMessageProcessorIfAlreadyRegistered = true,
+        bool addKafkaConfigurationWithDefaultSectionName = false)
         where TWorker : class, IDynamicConsumerService
         where TEventsHandler : class, IConsumerEventsHandler 
         where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
@@ -63,6 +63,13 @@ public static class DependencyInjection
         {
             serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
         }
+        
+        var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
+        if (!kafkaConfig.Consumers.TryGetValue(consumerConfigurationName, out var consumerConfiguration))
+            throw new InvalidOperationException(string.Format(
+                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
+                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         
         serviceCollection.TryAddSingleton<IConsumerEventsHandler, TEventsHandler>();
         serviceCollection.TryAddSingleton<TKeyDeserializer>();
@@ -98,8 +105,9 @@ public static class DependencyInjection
     public static IServiceCollection AddDynamicConsumerServiceWithDefaultDeserializers<TKey, TMessage, TWorker, TMessageProcessor, TEventsHandler>(
         this IServiceCollection serviceCollection,
         IConfiguration configuration, 
-        bool shouldSkipMessageProcessorIfAlreadyRegistered,
-        bool addKafkaConfigurationWithDefaultSectionName)
+        string consumerConfigurationName,
+        bool shouldSkipMessageProcessorIfAlreadyRegistered = true,
+        bool addKafkaConfigurationWithDefaultSectionName = false)
         where TWorker : class, IDynamicConsumerService
         where TEventsHandler : class, IConsumerEventsHandler 
         where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
@@ -115,6 +123,13 @@ public static class DependencyInjection
         {
             serviceCollection.AddMessageProcessor<TKey, TMessage, TMessageProcessor>();
         }
+        
+        var kafkaConfig = configuration.GetKafkaConfiguration(Constants.KafkaConfigurationSectionName);
+        if (!kafkaConfig.Consumers.TryGetValue(consumerConfigurationName, out var consumerConfiguration))
+            throw new InvalidOperationException(string.Format(
+                "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
+                Constants.KafkaConfigurationSectionName, consumerConfiguration));
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         
         serviceCollection.TryAddSingleton<IConsumerEventsHandler, TEventsHandler>();
         serviceCollection.TryAddSingleton<IDynamicConsumerModifier<TKey>, DynamicConsumerModifier<TKey>>();
@@ -148,11 +163,15 @@ public static class DependencyInjection
         this IServiceCollection serviceCollection,
         IConfiguration configuration, 
         string consumerConfigurationName,
-        bool shouldSkipMessageProcessorIfAlreadyRegistered)
+        bool shouldSkipMessageProcessorIfAlreadyRegistered = true,
+        bool addKafkaConfigurationWithDefaultSectionName = false)
         where TWorker : class, IHostedService
         where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
         where TEventsHandler : class, IConsumerEventsHandler
     {
+        if (addKafkaConfigurationWithDefaultSectionName)
+            serviceCollection.AddKafkaConfiguration(configuration, Constants.KafkaConfigurationSectionName);
+        
         serviceCollection.TryAddSingleton<TEventsHandler>();
 
         if (shouldSkipMessageProcessorIfAlreadyRegistered)
@@ -169,10 +188,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(string.Format(
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
-
-        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
-            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
-
+        
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         return serviceCollection
             .AddSingleton(provider =>
                 StaticConsumerBuilder.AddConsumerBuilder<TKey, TMessage>(consumerConfiguration,
@@ -208,13 +225,17 @@ public static class DependencyInjection
         this IServiceCollection serviceCollection,
         IConfiguration configuration, 
         string consumerConfigurationName,
-        bool shouldSkipMessageProcessorIfAlreadyRegistered)
+        bool shouldSkipMessageProcessorIfAlreadyRegistered = true,
+        bool addKafkaConfigurationWithDefaultSectionName = false)
         where TWorker : class, IHostedService
         where TMessageProcessor : class, IMessageProcessor<TKey, TMessage>
         where TEventsHandler : class, IConsumerEventsHandler
         where TKeyDeserializer : class, IDeserializer<TKey>
         where TValueDeserializer : class, IDeserializer<TMessage>
     {
+        if (addKafkaConfigurationWithDefaultSectionName)
+            serviceCollection.AddKafkaConfiguration(configuration, Constants.KafkaConfigurationSectionName);
+        
         serviceCollection.TryAddSingleton<TKeyDeserializer>();
         serviceCollection.TryAddSingleton<TValueDeserializer>();
         serviceCollection.TryAddSingleton<TEventsHandler>();
@@ -233,10 +254,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(string.Format(
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
-
-        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
-            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
         
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         return serviceCollection
             .AddSingleton(provider =>
                 StaticConsumerBuilder.AddConsumerBuilder(consumerConfiguration,
@@ -287,7 +306,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(string.Format(
                 "There is no configuration present in kafka section {kafkaSection} for producer {producer}",
                 Constants.KafkaConfigurationSectionName, producerConfiguration));
-
+        
+        MergeKafkaConfigurations(kafkaConfig, producerConfiguration);
         return serviceCollection.AddSingleton(provider =>
             StaticProducerBuilder.BuildProducer(producerConfiguration,
                 provider.GetService<TKeySerializer>(),
@@ -313,9 +333,10 @@ public static class DependencyInjection
                     "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                     Constants.KafkaConfigurationSectionName, consumerConfiguration));
 
-        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
-            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
-
+        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseConfig.Topics.Any())
+            consumerConfiguration.Topics = kafkaConfig.BaseConfig.Topics;
+        
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         return serviceCollection.AddSingleton(provider =>
             StaticConsumerBuilder.BuildConsumer(consumerConfiguration,
                 provider.GetService<TKeyDeserializer>(),
@@ -337,10 +358,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(string.Format(
                 "There is no configuration present in kafka section {kafkaSection} for consumer {consumer}",
                 Constants.KafkaConfigurationSectionName, consumerConfiguration));
-
-        if (!consumerConfiguration.Topics.Any() && kafkaConfig.BaseSettings.Topics.Any())
-            consumerConfiguration.Topics = kafkaConfig.BaseSettings.Topics;
-
+        
+        MergeKafkaConfigurations(kafkaConfig, consumerConfiguration);
         return serviceCollection
             .AddSingleton(provider =>
             StaticConsumerBuilder.BuildConsumer<TKey, TMessage>(consumerConfiguration,
@@ -351,4 +370,26 @@ public static class DependencyInjection
     }
     
     
+
+    /// <summary>
+    /// Merge base settings from config with consumer settings
+    /// </summary>
+    private static void MergeKafkaConfigurations(KafkaConfiguration config, TopicConfiguration topicConfiguration)
+    {
+        if (config.BaseConfig == null || (config.BaseConfig.Topics == null && config.BaseConfig == null)) 
+            return;
+        
+        if (!topicConfiguration.Topics.Any() && config.BaseConfig.Topics.Any())
+            topicConfiguration.Topics = config.BaseConfig.Topics;
+        
+        var baseSettings = config.BaseConfig?.BaseSettings;
+        if (baseSettings != null && baseSettings.Any())
+        {
+            foreach (var setting in baseSettings)
+            {
+                if (!topicConfiguration.Settings.ContainsKey(setting.Key))
+                    topicConfiguration.Settings.Add(setting.Key, setting.Value);
+            }
+        }
+    }
 }

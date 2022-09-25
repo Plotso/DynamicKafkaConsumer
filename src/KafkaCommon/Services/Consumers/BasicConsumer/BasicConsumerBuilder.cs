@@ -14,8 +14,7 @@ public static class BasicConsumerBuilder
     public static IConsumer<TKey, TValue> CreateConsumer<TKey, TValue>(ConsumerConfig config)
         where TValue : class
     {
-        config.GroupId =
-            FillInVariableValues(config.GroupId); // if group.id is set to [Guid] it will be replaced with actual guid
+        config.GroupId = FillInVariableValues(config.GroupId); // if group.id is set to [Guid] it will be replaced with actual guid
         return new ConsumerBuilder<TKey, TValue>(config)
             .SetValueDeserializer(new JsonValueSerializer<TValue>())
             .Build();
@@ -28,14 +27,12 @@ public static class BasicConsumerBuilder
         IConsumerEventsHandler consumerEventsHandler, JsonValueSerializer<TValue> serializer)
         where TValue : class
     {
-        config.GroupId =
-            FillInVariableValues(config.GroupId); // if group.id is set to [Guid] it will be replaced with actual guid
+        config.GroupId = FillInVariableValues(config.GroupId); // if group.id is set to [Guid] it will be replaced with actual guid
         return new ConsumerBuilder<TKey, TValue>(config)
             .WithEventHandlers(consumerEventsHandler)
             .SetValueDeserializer(serializer)
             .Build();
     }
-
 
     private static ConsumerBuilder<TKey, TMessage> WithEventHandlers<TKey, TMessage>(
         this ConsumerBuilder<TKey, TMessage> consumerBuilder, IConsumerEventsHandler? eventsHandler)
